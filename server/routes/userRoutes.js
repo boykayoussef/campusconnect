@@ -1,1 +1,12 @@
-import {Router} from 'express';import auth from '../middleware/authMiddleware.js';import {roles} from '../middleware/roleMiddleware.js';import {profile,updateProfile,listUsers,setStatus} from '../controllers/userController.js';const r=Router();r.get('/profile',auth,profile);r.put('/profile',auth,updateProfile);r.get('/',auth,roles('admin'),listUsers);r.patch('/:id/status',auth,roles('admin'),setStatus);export default r;
+import {Router} from 'express';
+import auth from '../middleware/authMiddleware.js';
+import {roles} from '../middleware/roleMiddleware.js';
+import {profile,updateProfile,listUsers,setStatus,setRole} from '../controllers/userController.js';
+const r=Router();
+r.get('/profile',auth,profile);
+r.put('/profile',auth,updateProfile);
+r.get('/',auth,roles('admin'),listUsers);
+r.put('/:id/status',auth,roles('admin'),setStatus);
+r.patch('/:id/status',auth,roles('admin'),setStatus);
+r.put('/:id/role',auth,roles('admin'),setRole);
+export default r;
