@@ -4,69 +4,52 @@
 
 Base URL: `http://localhost:5000/api`
 
+Authentication uses `Authorization: Bearer <JWT>` on private endpoints. Errors use `{ "success": false, "message": "..." }`.
+
 ## Authentication
 
-### POST `/auth/register`
-Creates a user account.
-
-### POST `/auth/login`
-Authenticates a user and returns a JWT token.
-
-Use the returned token as:
-
-`Authorization: Bearer <token>`
+- `POST /auth/register` — public registration for `student` or `clubLeader`. Club leaders start as `pending`.
+- `POST /auth/login` — public login; returns JWT.
+- `GET /auth/me` — private current-user profile.
 
 ## Users
 
-### GET `/users/profile`
-Returns the authenticated user's profile.
-
-### PUT `/users/profile`
-Updates the authenticated user's profile.
+- `GET /users/profile` — private own profile.
+- `PUT /users/profile` — private update own name, bio, or profile picture.
+- `GET /users` — admin list users; supports `?role=` and `?status=` filters.
+- `PUT /users/:id/status` — admin approve/reject/pending club leader.
+- `PUT /users/:id/role` — admin change role to `student`, `clubLeader`, or `admin`.
 
 ## Events
 
-### GET `/events`
-Returns available events. Supports event discovery/search/filtering according to the implemented API.
-
-### GET `/events/:id`
-Returns one event.
-
-### POST `/events`
-Creates an event for an authorized Club Leader/Admin.
-
-### PUT `/events/:id`
-Updates an event when permitted by the user's role and ownership rules.
-
-### DELETE `/events/:id`
-Deletes an event when permitted.
-
-### GET `/events/:id/registrants`
-Returns registrants for an event for an authorized Club Leader/Admin.
+- `POST /events` — approved club leader creates an event; category is assigned by Hugging Face.
+- `GET /events` — public event feed; supports `category`, `type`, `status`, and `q` search/filter parameters.
+- `GET /events/:id` — public event details, host and remaining slots.
+- `PUT /events/:id` — owner/admin update event; description changes trigger reclassification.
+- `DELETE /events/:id` — owner/admin delete event and its registrations.
+- `GET /events/mine` — authenticated club leader/admin list of created events.
 
 ## Registrations
 
-### POST `/registrations/:eventId`
-Registers the authenticated student for an event.
+- `POST /registrations` — student RSVP with optional note.
+- `GET /registrations/my` — authenticated registration history with event details.
+- `GET /registrations/event/:id` — event owner/admin list registrants.
+- `PUT /registrations/:id` — owner/admin change status to `pending`, `confirmed`, or `cancelled`.
+- `DELETE /registrations/:id` — owner/admin cancel registration.
 
-The backend enforces duplicate-registration, capacity, authorization, and past-event rules.
+## Server-side business rules
 
-### GET `/registrations/me`
-Returns the authenticated user's registrations.
-
-### DELETE `/registrations/:eventId`
-Cancels an existing registration when permitted.
-
-## Administration
-
-Administrative endpoints are protected by role-based authorization and are available only to administrators.
+1. `{ user, event }` has a compound unique index, preventing duplicate registrations.
+2. Closed or full events reject new registrations.
+3. Past events reject registration.
+4. Pending/rejected club leaders cannot create events.
+5. Club leaders can only edit/delete their own events and view their own event registrants.
+6. Authentication and role/ownership checks are enforced in backend middleware/controllers, not only in React.
+7. Required event fields are validated with HTTP 400 responses.
 
 ## Health
 
-### GET `/health`
-Returns API status.
-
-Example response:
+`GET /health` returns API status without requiring a database-backed route.
 
 ```json
 {
@@ -75,6 +58,10 @@ Example response:
 }
 ```
 
+## Hugging Face integration
+
+The backend sends event title/description text to `facebook/bart-large-mnli` with candidate categories including Academic, Sports, Arts, Technology, Social, Career, Volunteering, and Other. If no token is configured or the service fails, the application safely falls back to `Other`.
+
 ## Postman
 
-The complete request collection is available under `postman/CampusConnect-API.json`.
+Import `postman/CampusConnect.postman_collection.json` for the API test collection.
