@@ -1,2 +1,0 @@
-import mongoose from 'mongoose';
-const schema=new mongoose.Schema({user:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},event:{type:mongoose.Schema.Types.ObjectId,ref:'Event',required:true},note:{type:String,default:''},status:{type:String,enum:['pending','confirmed','cancelled'],default:'pending'},registeredAt:{type:Date,default:Date.now}});schema.index({user:1,event:1},{unique:true});export default mongoose.model('Registration',schema);
