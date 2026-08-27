@@ -1,41 +1,49 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { connectDB } from './config/db.js';
-import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
-import eventRoutes from './routes/eventRoutes.js';
-import registrationRoutes from './routes/registrationRoutes.js';
-import { notFound, errorHandler } from './middleware/errorHandler.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import axios from 'axios';
+import { pool } from './config/db.js';
 
-const app = express();
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+const app=express(); app.use(cors({origin:true,credentials:true})); app.use(express.json());
+const JWT_SECRET=process.env.JWT_SECRET||'change-this-secret-before-production';
+const publicUser=r=>({id:r.id,name:r.name,email:r.email,role:r.role,status:r.status,bio:r.bio||'',profilePicture:r.profile_picture||''});
+const sign=r=>jwt.sign({id:r.id},JWT_SECRET,{expiresIn:'7d'});
+async function auth(req,res,next){try{const h=req.headers.authorization||'';if(!h.startsWith('Bearer '))return res.status(401).json({message:'Authentication required'});const p=jwt.verify(h.slice(7),JWT_SECRET);const {rows}=await pool.query('select * from users where id=$1',[p.id]);if(!rows[0])return res.status(401).json({message:'User not found'});req.user=rows[0];next()}catch(e){return res.status(401).json({message:'Invalid or expired token'})}}
+const allow=(...roles)=>(req,res,next)=>roles.includes(req.user.role)?next():res.status(403).json({message:'Forbidden'});
+const approved=(req,res,next)=>req.user.status==='approved'?next():res.status(403).json({message:'Account is not approved'});
+async function eventById(id){const {rows}=await pool.query(`select e.*,u.name as creator_name,coalesce(c.registered_count,0)::int as registered_count,coalesce(c.remaining_slots,e.total_slots)::int as remaining_slots from events e join users u on u.id=e.created_by left join event_capacity c on c.id=e.id where e.id=$1`,[id]);return rows[0]}
+function classify(title='',description=''){const s=(title+' '+description).toLowerCase();if(/ai|software|coding|hack|technology|program/.test(s))return 'Technology';if(/career|startup|internship|business/.test(s))return 'Career';if(/sport|football|basketball|fitness/.test(s))return 'Sports';if(/volunteer|community|service/.test(s))return 'Volunteering';if(/art|design|photo|music/.test(s))return 'Arts';return 'General'}
+async function aiCategory(title,description){if(process.env.HUGGINGFACE_API_KEY){try{const r=await axios.post('https://api-inference.huggingface.co/models/facebook/bart-large-mnli',{inputs:`${title}. ${description}`,parameters:{candidate_labels:['Technology','Career','Sports','Volunteering','Arts','General']}},{headers:{Authorization:`Bearer ${process.env.HUGGINGFACE_API_KEY}`},timeout:8000});const label=r.data?.labels?.[0];if(label)return label}catch{}}return classify(title,description)}
 
-let dbPromise;
-const ensureDB = () => {
-  if (!dbPromise) dbPromise = connectDB();
-  return dbPromise;
-};
+app.get('/api/health',async(req,res)=>{try{await pool.query('select 1');res.json({success:true,message:'CampusConnect API is running',database:'connected'})}catch(e){res.status(503).json({success:false,message:'API running but database unavailable'})}});
 
-// Keep health checks independent of MongoDB so deployment status can be diagnosed.
-app.get('/api/health', (req, res) => res.json({ success: true, message: 'CampusConnect API is running' }));
+app.post('/api/auth/register',async(req,res)=>{try{const{name,email,password,role='student'}=req.body;if(!name||!email||!password)return res.status(400).json({message:'Name, email and password are required'});if(!['student','clubLeader'].includes(role))return res.status(400).json({message:'Invalid role'});const exists=await pool.query('select id from users where lower(email)=lower($1)',[email]);if(exists.rows[0])return res.status(409).json({message:'Email already registered'});const hash=await bcrypt.hash(password,12);const status=role==='clubLeader'?'pending':'approved';const {rows}=await pool.query('insert into users(name,email,password_hash,role,status) values($1,$2,$3,$4,$5) returning *',[name,email.toLowerCase(),hash,role,status]);res.status(201).json({user:publicUser(rows[0]),token:sign(rows[0])})}catch(e){res.status(500).json({message:'Registration failed'})}});
+app.post('/api/auth/login',async(req,res)=>{try{const{email,password}=req.body;const{rows}=await pool.query('select * from users where lower(email)=lower($1)',[email||'']);const u=rows[0];if(!u||!(await bcrypt.compare(password||'',u.password_hash)))return res.status(401).json({message:'Invalid email or password'});res.json({user:publicUser(u),token:sign(u)})}catch(e){res.status(500).json({message:'Login failed'})}});
+app.get('/api/auth/me',auth,(req,res)=>res.json({user:publicUser(req.user)}));
 
-// Database-backed routes connect lazily on first request.
-app.use(async (req, res, next) => {
-  try {
-    await ensureDB();
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
+app.get('/api/users/profile',auth,(req,res)=>res.json({user:publicUser(req.user)}));
+app.put('/api/users/profile',auth,async(req,res)=>{try{const{name,bio,profilePicture}=req.body;const{rows}=await pool.query('update users set name=coalesce($1,name),bio=coalesce($2,bio),profile_picture=coalesce($3,profile_picture),updated_at=now() where id=$4 returning *',[name,bio,profilePicture,req.user.id]);res.json({user:publicUser(rows[0])})}catch(e){res.status(500).json({message:'Profile update failed'})}});
+app.get('/api/users',auth,allow('admin'),async(req,res)=>{const{role,status}=req.query;const params=[];const where=[];if(role){params.push(role);where.push(`role=$${params.length}`)}if(status){params.push(status);where.push(`status=$${params.length}`)}const q=`select * from users ${where.length?'where '+where.join(' and '):''} order by created_at desc`;const{rows}=await pool.query(q,params);res.json({users:rows.map(publicUser)})});
+app.patch('/api/users/:id/role',auth,allow('admin'),async(req,res)=>{const{role}=req.body;if(!['student','clubLeader','admin'].includes(role))return res.status(400).json({message:'Invalid role'});const{rows}=await pool.query('update users set role=$1,status=$2,updated_at=now() where id=$3 returning *',[role,role==='clubLeader'?'approved':'approved',req.params.id]);if(!rows[0])return res.status(404).json({message:'User not found'});res.json({user:publicUser(rows[0])})});
+app.patch('/api/users/:id/status',auth,allow('admin'),async(req,res)=>{const{status}=req.body;if(!['pending','approved','rejected'].includes(status))return res.status(400).json({message:'Invalid status'});const{rows}=await pool.query('update users set status=$1,updated_at=now() where id=$2 returning *',[status,req.params.id]);if(!rows[0])return res.status(404).json({message:'User not found'});res.json({user:publicUser(rows[0])})});
 
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/registrations', registrationRoutes);
-app.use(notFound);
-app.use(errorHandler);
+app.get('/api/events',async(req,res)=>{try{const{search,category,type,status='open'}=req.query;const p=[];const w=[];if(status){p.push(status);w.push(`e.status=$${p.length}`)}if(category){p.push(category);w.push(`e.category=$${p.length}`)}if(type){p.push(type);w.push(`e.type=$${p.length}`)}if(search){p.push('%'+search+'%');w.push(`(e.title ilike $${p.length} or e.description ilike $${p.length} or e.club ilike $${p.length})`)}const{rows}=await pool.query(`select e.*,u.name as creator_name,coalesce(c.registered_count,0)::int registered_count,coalesce(c.remaining_slots,e.total_slots)::int remaining_slots from events e join users u on u.id=e.created_by left join event_capacity c on c.id=e.id ${w.length?'where '+w.join(' and '):''} order by e.event_date asc`,p);res.json({events:rows})}catch(e){res.status(500).json({message:'Could not load events'})}});
+app.get('/api/events/my/created',auth,allow('clubLeader','admin'),async(req,res)=>{const{rows}=await pool.query(`select e.*,coalesce(c.registered_count,0)::int registered_count,coalesce(c.remaining_slots,e.total_slots)::int remaining_slots from events e left join event_capacity c on c.id=e.id where e.created_by=$1 order by e.event_date asc`,[req.user.id]);res.json({events:rows})});
+app.get('/api/events/mine',auth,allow('clubLeader','admin'),async(req,res)=>{const{rows}=await pool.query(`select e.*,coalesce(c.registered_count,0)::int registered_count,coalesce(c.remaining_slots,e.total_slots)::int remaining_slots from events e left join event_capacity c on c.id=e.id where e.created_by=$1 order by e.event_date asc`,[req.user.id]);res.json({events:rows})});
+app.get('/api/events/:id',async(req,res)=>{const e=await eventById(req.params.id);if(!e)return res.status(404).json({message:'Event not found'});res.json({event:e,remainingSlots:e.remaining_slots})});
+app.post('/api/events',auth,allow('clubLeader'),approved,async(req,res)=>{try{const{title,club,description,requirements=[],location,eventDate,type,totalSlots=50,category}=req.body;if(!title||!club||!description||!location||!eventDate||!type)return res.status(400).json({message:'Missing required event fields'});const finalCategory=category||await aiCategory(title,description);const{rows}=await pool.query('insert into events(title,club,description,requirements,location,event_date,type,category,total_slots,status,created_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *',[title,club,description,requirements,location,eventDate,type,finalCategory,totalSlots,'open',req.user.id]);res.status(201).json({event:rows[0]})}catch(e){res.status(500).json({message:'Could not create event'})}});
+app.put('/api/events/:id',auth,async(req,res)=>{try{const e=await eventById(req.params.id);if(!e)return res.status(404).json({message:'Event not found'});if(req.user.role!=='admin'&&String(e.created_by)!==String(req.user.id))return res.status(403).json({message:'You do not own this event'});const{title,club,description,requirements,location,eventDate,type,totalSlots,status,category}=req.body;const{rows}=await pool.query(`update events set title=coalesce($1,title),club=coalesce($2,club),description=coalesce($3,description),requirements=coalesce($4,requirements),location=coalesce($5,location),event_date=coalesce($6,event_date),type=coalesce($7,type),total_slots=coalesce($8,total_slots),status=coalesce($9,status),category=coalesce($10,category),updated_at=now() where id=$11 returning *`,[title,club,description,requirements,location,eventDate,type,totalSlots,status,category,req.params.id]);res.json({event:rows[0]})}catch(e){res.status(500).json({message:'Could not update event'})}});
+app.delete('/api/events/:id',auth,async(req,res)=>{const e=await eventById(req.params.id);if(!e)return res.status(404).json({message:'Event not found'});if(req.user.role!=='admin'&&String(e.created_by)!==String(req.user.id))return res.status(403).json({message:'You do not own this event'});await pool.query('delete from events where id=$1',[req.params.id]);res.json({message:'Event deleted'})});
 
+app.post('/api/registrations',auth,allow('student'),async(req,res)=>{try{const eventId=req.body.eventId||req.body.event;const e=await eventById(eventId);if(!e)return res.status(404).json({message:'Event not found'});if(e.status!=='open')return res.status(400).json({message:'Event is closed'});if(new Date(e.event_date)<=new Date())return res.status(400).json({message:'Cannot register for a past event'});if(Number(e.remaining_slots)<=0)return res.status(400).json({message:'Event is full'});const dup=await pool.query("select id,status from registrations where user_id=$1 and event_id=$2",[req.user.id,eventId]);if(dup.rows[0]&&dup.rows[0].status!=='cancelled')return res.status(409).json({message:'Already registered'});let rows;if(dup.rows[0]){rows=(await pool.query("update registrations set status='pending',updated_at=now() where id=$1 returning *",[dup.rows[0].id])).rows}else{rows=(await pool.query('insert into registrations(user_id,event_id,status) values($1,$2,\'pending\') returning *',[req.user.id,eventId])).rows}res.status(201).json({registration:rows[0]})}catch(e){res.status(500).json({message:'RSVP failed'})}});
+app.get('/api/registrations/my',auth,allow('student'),async(req,res)=>{const{rows}=await pool.query(`select r.*,e.title,e.club,e.event_date,e.location from registrations r join events e on e.id=r.event_id where r.user_id=$1 order by e.event_date desc`,[req.user.id]);res.json({registrations:rows})});
+app.get('/api/registrations/status/:eventId',auth,async(req,res)=>{const{rows}=await pool.query('select * from registrations where user_id=$1 and event_id=$2',[req.user.id,req.params.eventId]);res.json({registered:!!rows[0]&&rows[0].status!=='cancelled',registration:rows[0]||null})});
+app.get('/api/events/:eventId/registrations',auth,allow('clubLeader','admin'),async(req,res)=>{const e=await eventById(req.params.eventId);if(!e)return res.status(404).json({message:'Event not found'});if(req.user.role==='clubLeader'&&String(e.created_by)!==String(req.user.id))return res.status(403).json({message:'You do not own this event'});const{rows}=await pool.query(`select r.*,u.id as user_id,u.name,u.email from registrations r join users u on u.id=r.user_id where r.event_id=$1 order by r.created_at desc`,[req.params.eventId]);res.json({registrations:rows})});
+app.patch('/api/registrations/:id/status',auth,allow('clubLeader','admin'),async(req,res)=>{const{status}=req.body;if(!['confirmed','cancelled','pending'].includes(status))return res.status(400).json({message:'Invalid status'});const q=await pool.query('select r.*,e.created_by from registrations r join events e on e.id=r.event_id where r.id=$1',[req.params.id]);const r=q.rows[0];if(!r)return res.status(404).json({message:'Registration not found'});if(req.user.role==='clubLeader'&&String(r.created_by)!==String(req.user.id))return res.status(403).json({message:'You do not own this event'});const{rows}=await pool.query('update registrations set status=$1,updated_at=now() where id=$2 returning *',[status,req.params.id]);res.json({registration:rows[0]})});
+app.delete('/api/registrations/:id',auth,async(req,res)=>{const{rows}=await pool.query('select * from registrations where id=$1',[req.params.id]);const r=rows[0];if(!r)return res.status(404).json({message:'Registration not found'});if(req.user.role!=='admin'&&String(r.user_id)!==String(req.user.id))return res.status(403).json({message:'Forbidden'});await pool.query("update registrations set status='cancelled',updated_at=now() where id=$1",[req.params.id]);res.json({message:'Registration cancelled'})});
+
+app.use((req,res)=>res.status(404).json({message:'Route not found'}));
+app.use((err,req,res,next)=>{console.error(err);res.status(500).json({message:'Internal server error'})});
 export default app;
