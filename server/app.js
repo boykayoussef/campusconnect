@@ -18,11 +18,19 @@ const ensureDB = () => {
   return dbPromise;
 };
 
+// Keep health checks independent of MongoDB so deployment status can be diagnosed.
+app.get('/api/health', (req, res) => res.json({ success: true, message: 'CampusConnect API is running' }));
+
+// Database-backed routes connect lazily on first request.
 app.use(async (req, res, next) => {
-  try { await ensureDB(); next(); } catch (err) { next(err); }
+  try {
+    await ensureDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.get('/api/health', (req, res) => res.json({ success: true, message: 'CampusConnect API is running' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
