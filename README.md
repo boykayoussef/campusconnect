@@ -1,160 +1,104 @@
 # CampusConnect
 
 **Author:** Youssef Mostafa  
-**Project:** CampusConnect — University Event Management Platform
+**Project:** CampusConnect — AI-Enhanced Campus Community Platform
 
-CampusConnect is a full-stack MERN application for managing university events, registrations, club-led activities, and administrative approval workflows. The system is designed around role-based access for **Students, Club Leaders, and Administrators**.
+CampusConnect is a full-stack MERN application for university students, club leaders, and administrators to discover campus events, create and manage club activities, RSVP, manage registrations, and administer the platform.
 
-## Table of Contents
+## Assignment coverage
 
-- [Overview](#overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [User Roles](#user-roles)
-- [Project Structure](#project-structure)
-- [System Architecture](#system-architecture)
-- [API Overview](#api-overview)
-- [Setup and Installation](#setup-and-installation)
-- [Environment Variables](#environment-variables)
-- [Running the Application](#running-the-application)
-- [Testing](#testing)
-- [Security](#security)
-- [Author](#author)
-
-## Overview
-
-CampusConnect provides a central place for university communities to discover events, register for activities, create and manage club events, and administer the platform. The implementation follows the project requirements for authentication, authorization, event CRUD, registration rules, administration, and automated event-category classification.
+This repository implements the requirements from the GIU Software Engineering project brief and Task 2 specification: MERN architecture, Mongoose User/Event/Registration schemas, JWT authentication, bcrypt password hashing, server-side RBAC and ownership checks, event CRUD, registration rules, Hugging Face event classification, React routing/state/API integration, responsive UI, Postman testing, seed data, and setup documentation.
 
 ## Features
 
-### Authentication and Authorization
-
-- User registration and login
-- JWT-based authentication
+### Authentication
+- Student and club-leader registration
+- Club leaders begin as `pending` and require admin approval
+- JWT login/session persistence
 - bcrypt password hashing
-- Role-based access control
-- Protected frontend routes
-- Student, Club Leader, and Admin roles
+- Password excluded from API responses
+- Client-side logout by discarding the token
 
-### Event Management
+### Student
+- Browse approved/open events
+- Keyword search and category/type filters
+- View complete event details and remaining capacity
+- RSVP with optional note
+- View registration history
+- Cancel registrations
+- Manage name, bio, and profile picture
 
-- Browse upcoming university events
-- Search and filter events
-- View event details
-- Create, update, and delete events according to role permissions
-- Event capacity management
-- Event-category classification using Hugging Face integration
+### Club Leader
+- Requires admin approval before publishing events
+- Create events with title, club, description, requirements, location, date, type, capacity, and status
+- AI assigns the event category
+- View, edit, and delete only owned events
+- View registrants for owned events
+- Confirm or cancel registration statuses
 
-### Registration / RSVP
+### Admin
+- View/filter all users
+- Approve or reject pending club leaders
+- Change user roles
+- View platform events
+- Remove events
+- Full backend authorization on administrative endpoints
 
-- Students can register for events
-- Prevents duplicate registrations
-- Prevents registration for past events
-- Enforces event capacity
-- Users can view their registrations
-- Club Leaders can view registrants for their events
+### Business rules
+- Duplicate RSVP prevention through a unique `{ user, event }` index
+- Closed/full events reject new registrations
+- Past events reject registration
+- Capacity is enforced server-side
+- Ownership is enforced server-side
+- Centralized JSON error responses
+- Required fields return HTTP 400 instead of crashing
 
-### Administration
-
-- Admin dashboard
-- Club Leader approval workflow
-- User/profile administration
-- Role-aware access to administrative operations
-
-### Developer Resources
-
-- REST API
-- MongoDB/Mongoose persistence
-- Postman collection
-- Environment-variable examples
-- Local development configuration
-- Responsive React interface
+### AI classification
+Event creation sends title/description to Hugging Face `facebook/bart-large-mnli` with candidate categories including Academic, Sports, Arts, Technology, Social, Career, Volunteering, and Other. A safe `Other` fallback is used when no token is configured or the external service fails.
 
 ## Technology Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, Vite, React Router, Axios |
-| Backend | Node.js, Express |
+| Backend | Node.js, Express 5 |
 | Database | MongoDB, Mongoose |
 | Authentication | JWT, bcryptjs |
-| Classification | Hugging Face API |
+| AI | Hugging Face Inference API |
 | API Testing | Postman |
 | Version Control | Git / GitHub |
-
-## User Roles
-
-| Role | Main Permissions |
-|---|---|
-| Student | Browse events, view details, register/RSVP, manage profile, view registrations |
-| Club Leader | Create/manage own events, view event registrants, manage profile |
-| Admin | Administrative dashboard, approve club leaders, manage administrative functions |
 
 ## Project Structure
 
 ```text
 CampusConnect/
-├── client/                         # React + Vite frontend
+├── client/
 │   ├── src/
-│   │   ├── components/             # Shared UI components
-│   │   ├── context/                # Authentication state
-│   │   └── pages/                  # Application pages
+│   │   ├── components/
+│   │   ├── context/
+│   │   └── pages/
 │   ├── .env.example
-│   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
-│
-├── server/                         # Node.js + Express backend
-│   ├── config/                     # Database configuration
-│   ├── controllers/                # Request/business controllers
-│   ├── middleware/                 # Auth and error middleware
-│   ├── models/                     # Mongoose models
-│   ├── routes/                     # REST API routes
-│   ├── services/                   # External/API services
+├── server/
+│   ├── config/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── models/
+│   ├── routes/
+│   ├── services/
 │   ├── .env.example
 │   ├── package.json
 │   ├── seedAdmin.js
+│   ├── seedDemoData.js
 │   └── server.js
-│
-├── postman/                        # API testing collection
-├── docs/                           # Project documentation
+├── postman/
+├── docs/
 ├── .gitignore
 └── README.md
 ```
 
-## System Architecture
-
-```text
-React Frontend
-      │
-      │ HTTP / JSON
-      ▼
-Express REST API
-      │
-      ├── JWT Authentication
-      ├── Role-Based Authorization
-      ├── Event / Registration Logic
-      ├── Hugging Face Classification
-      │
-      ▼
-MongoDB / Mongoose
-```
-
-## API Overview
-
-The backend exposes REST endpoints grouped around:
-
-- `/api/auth` — registration and login
-- `/api/users` — profile and user operations
-- `/api/events` — event CRUD, search, and event management
-- `/api/registrations` — RSVP/registration operations
-- `/api/health` — API health check
-
-A complete Postman collection is included in `postman/`.
-
-See the detailed documentation in [`docs/API-Documentation.md`](docs/API-Documentation.md).
-
-## Setup and Installation
+## Setup
 
 ### Prerequisites
 
@@ -163,128 +107,102 @@ See the detailed documentation in [`docs/API-Documentation.md`](docs/API-Documen
 - MongoDB Community Server or MongoDB Atlas
 - Git
 
-### 1. Clone the repository
+### Backend
 
 ```bash
 git clone https://github.com/boykayoussef/campusconnect.git
-cd campusconnect
-```
-
-### 2. Configure the backend
-
-```bash
-cd server
+cd campusconnect/server
 npm install
 ```
 
-Copy `server/.env.example` to `server/.env` and configure the values.
-
-### 3. Configure the frontend
+Copy `server/.env.example` to `server/.env` and set your local MongoDB URI and JWT secret.
 
 ```bash
-cd ../client
-npm install
+npm run seed:admin
+npm run seed:demo
+npm start
 ```
 
-Copy `client/.env.example` to `client/.env`.
+The API runs at `http://localhost:5000`.
 
-## Environment Variables
+### Frontend
 
-### Backend
+In a second terminal:
+
+```bash
+cd campusconnect/client
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`.
+
+## Environment variables
+
+### Server
 
 ```text
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/campusconnect
-JWT_SECRET=replace_with_a_secure_secret
+MONGODB_URI=mongodb://127.0.0.1:27017/campusconnect
+JWT_SECRET=change-this-secret
+JWT_EXPIRES_IN=1d
 CLIENT_URL=http://localhost:5173
-HF_API_KEY=your_hugging_face_api_key
+HF_API_TOKEN=
 ```
 
-### Frontend
+### Client
 
 ```text
 VITE_API_URL=http://localhost:5000/api
 ```
 
-**Never commit real `.env` files or API secrets to GitHub.**
+Real secrets must never be committed. `.gitignore` excludes `.env` while keeping `.env.example` files.
 
-## Running the Application
+## Demo test accounts
 
-### Start the backend
-
-```bash
-cd server
-npm install
-npm run seed:admin
-npm start
-```
-
-The API runs at:
+After `npm run seed:demo`:
 
 ```text
-http://localhost:5000
-```
-
-### Start the frontend
-
-In another terminal:
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:5173
-```
-
-### Demo Admin
-
-The development seed command creates:
-
-```text
+Admin
 Email: admin@campusconnect.local
 Password: Admin123!
+
+Approved Club Leader
+Email: leader@campusconnect.local
+Password: Leader123!
+
+Student
+Email: student@campusconnect.local
+Password: Student123!
 ```
 
-Change credentials/secrets for any real deployment.
+The demo seed creates eight realistic future events, including **AI Study Jam**, and uses upserts so repeated seeding does not create duplicates.
 
-## Testing
+## API
 
-### API Testing
+The complete API surface is documented in [`docs/API-Documentation.md`](docs/API-Documentation.md), including:
 
-Import the Postman collection from:
+- `/api/auth/register`
+- `/api/auth/login`
+- `/api/auth/me`
+- `/api/users/profile`
+- `/api/users`
+- `/api/users/:id/status`
+- `/api/users/:id/role`
+- `/api/events`
+- `/api/events/:id`
+- `/api/events/mine`
+- `/api/registrations`
+- `/api/registrations/my`
+- `/api/registrations/event/:id`
+- `/api/registrations/:id`
+- `/api/health`
 
-```text
-postman/CampusConnect-API.json
-```
+Import `postman/CampusConnect.postman_collection.json` for API testing.
 
-### Health Check
+## Version control
 
-Open:
-
-```text
-http://localhost:5000/api/health
-```
-
-### Frontend Build
-
-```bash
-cd client
-npm run build
-```
-
-## Security
-
-- Passwords are hashed with bcryptjs.
-- Authentication uses signed JWT tokens.
-- Protected endpoints use authorization middleware.
-- Role checks prevent unauthorized operations.
-- Environment secrets are excluded from version control.
-- Registration rules are enforced by the backend rather than only the UI.
+The repository is maintained as a Git project. Meaningful feature commits are used for Task 2 work, with the main branch containing the completed submission.
 
 ## Documentation
 
@@ -296,6 +214,6 @@ npm run build
 
 **Youssef Mostafa**
 
-CampusConnect — University Software Project
+CampusConnect — GIU Software Engineering Project, Summer 2026 Round II
 
 GitHub: https://github.com/boykayoussef/campusconnect
