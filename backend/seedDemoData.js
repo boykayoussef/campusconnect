@@ -1,45 +1,23 @@
 import 'dotenv/config';
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { connectDB } from './config/db.js';
-import User from './models/User.js';
-import Event from './models/Event.js';
-
+import { pool, connectDB } from './config/db.js';
 await connectDB();
-
-const passwordHash = await bcrypt.hash('Student123!', 12);
-const leaderPasswordHash = await bcrypt.hash('Leader123!', 12);
-
-const admin = await User.findOneAndUpdate(
-  { email: 'admin@campusconnect.local' },
-  { $setOnInsert: { name: 'System Admin', email: 'admin@campusconnect.local', password: await bcrypt.hash('Admin123!', 12), role: 'admin', status: 'approved' } },
-  { upsert: true, new: true }
-);
-const leader = await User.findOneAndUpdate(
-  { email: 'leader@campusconnect.local' },
-  { $set: { name: 'Campus Club Leader', email: 'leader@campusconnect.local', password: leaderPasswordHash, role: 'clubLeader', status: 'approved' } },
-  { upsert: true, new: true }
-);
-await User.findOneAndUpdate(
-  { email: 'student@campusconnect.local' },
-  { $set: { name: 'Campus Student', email: 'student@campusconnect.local', password: passwordHash, role: 'student', status: 'approved' } },
-  { upsert: true, new: true }
-);
-
-const events = [
-  { title: 'AI Study Jam', club: 'AI & Technology Club', description: 'A collaborative study session covering practical AI concepts, study strategies, and responsible use of generative AI.', requirements: ['Bring a laptop', 'Basic programming knowledge recommended'], location: 'Innovation Lab', eventDate: new Date('2026-09-12T14:00:00Z'), type: 'workshop', category: 'Technology', totalSlots: 40 },
-  { title: 'GIU Hackathon 2026', club: 'Computer Science Club', description: 'A campus coding competition where teams build creative software solutions to a student-life challenge.', requirements: ['Teams of 2-4 students', 'Laptop required'], location: 'Main Auditorium', eventDate: new Date('2026-09-19T09:00:00Z'), type: 'competition', category: 'Technology', totalSlots: 80 },
-  { title: 'Campus Sports Day', club: 'Sports Club', description: 'A social day of friendly football, basketball, table tennis, and team activities.', requirements: ['Sportswear recommended'], location: 'University Sports Complex', eventDate: new Date('2026-09-26T10:00:00Z'), type: 'social', category: 'Sports', totalSlots: 100 },
-  { title: 'Career & Internship Fair', club: 'Career Development Club', description: 'Meet employers, discover internships, and attend short career sessions designed for university students.', requirements: ['Bring a CV if available'], location: 'Student Center', eventDate: new Date('2026-10-03T11:00:00Z'), type: 'workshop', category: 'Career', totalSlots: 120 },
-  { title: 'Community Volunteering Day', club: 'Community Service Club', description: 'A campus volunteering day focused on community support and practical service activities.', requirements: ['Register before the event', 'Wear comfortable clothing'], location: 'Community Outreach Center', eventDate: new Date('2026-10-10T09:00:00Z'), type: 'volunteering', category: 'Volunteering', totalSlots: 50 },
-  { title: 'Startup Ideas Workshop', club: 'Entrepreneurship Club', description: 'Turn a student idea into a simple startup concept through problem discovery, validation, and pitching exercises.', requirements: ['Bring one idea to discuss'], location: 'Business School Room B204', eventDate: new Date('2026-10-17T13:00:00Z'), type: 'workshop', category: 'Career', totalSlots: 35 },
-  { title: 'Art & Design Exhibition', club: 'Arts Club', description: 'A student exhibition showcasing illustration, photography, graphic design, and creative projects.', requirements: [], location: 'Arts Building Gallery', eventDate: new Date('2026-10-24T16:00:00Z'), type: 'social', category: 'Arts', totalSlots: 70 },
-  { title: 'Photography Walk Around Campus', club: 'Photography Club', description: 'A relaxed photography walk exploring campus architecture, student life, and creative composition.', requirements: ['Phone or camera'], location: 'Main Gate', eventDate: new Date('2026-10-31T15:00:00Z'), type: 'social', category: 'Arts', totalSlots: 30 }
+const users=[
+ {name:'System Admin',email:'admin@campusconnect.local',password:'Admin123!',role:'admin',status:'approved'},
+ {name:'Campus Club Leader',email:'leader@campusconnect.local',password:'Leader123!',role:'clubLeader',status:'approved'},
+ {name:'Campus Student',email:'student@campusconnect.local',password:'Student123!',role:'student',status:'approved'}
 ];
-
-for (const data of events) {
-  await Event.updateOne({ title: data.title }, { $set: { ...data, createdBy: leader._id, status: 'open' } }, { upsert: true });
-}
-
-console.log(`Demo data ready: ${events.length} events, admin ${admin.email}, leader ${leader.email}, student student@campusconnect.local`);
-await mongoose.disconnect();
+const ids={};
+for(const u of users){const hash=await bcrypt.hash(u.password,12);const r=await pool.query(`insert into users(name,email,password_hash,role,status) values($1,$2,$3,$4,$5) on conflict(email) do update set name=excluded.name,password_hash=excluded.password_hash,role=excluded.role,status=excluded.status returning id`,[u.name,u.email,hash,u.role,u.status]);ids[u.role]=r.rows[0].id}
+const events=[
+ ['AI Study Jam','AI & Technology Club','A collaborative study session covering practical AI concepts, study strategies, and responsible use of generative AI.',['Bring a laptop','Basic programming knowledge recommended'],'Innovation Lab','2026-09-12T14:00:00Z','workshop','Technology',40],
+ ['GIU Hackathon 2026','Computer Science Club','A campus coding competition where teams build creative software solutions to a student-life challenge.',['Teams of 2-4 students','Laptop required'],'Main Auditorium','2026-09-19T09:00:00Z','competition','Technology',80],
+ ['Campus Sports Day','Sports Club','A social day of friendly football, basketball, table tennis, and team activities.',['Sportswear recommended'],'University Sports Complex','2026-09-26T10:00:00Z','social','Sports',100],
+ ['Career & Internship Fair','Career Development Club','Meet employers, discover internships, and attend short career sessions designed for university students.',['Bring a CV if available'],'Student Center','2026-10-03T11:00:00Z','workshop','Career',120],
+ ['Community Volunteering Day','Community Service Club','A campus volunteering day focused on community support and practical service activities.',['Register before the event','Wear comfortable clothing'],'Community Outreach Center','2026-10-10T09:00:00Z','volunteering','Volunteering',50],
+ ['Startup Ideas Workshop','Entrepreneurship Club','Turn a student idea into a simple startup concept through problem discovery, validation, and pitching exercises.',['Bring one idea to discuss'],'Business School Room B204','2026-10-17T13:00:00Z','workshop','Career',35],
+ ['Art & Design Exhibition','Arts Club','A student exhibition showcasing illustration, photography, graphic design, and creative projects.',[],'Arts Building Gallery','2026-10-24T16:00:00Z','social','Arts',70],
+ ['Photography Walk Around Campus','Photography Club','A relaxed photography walk exploring campus architecture, student life, and creative composition.',['Phone or camera'],'Main Gate','2026-10-31T15:00:00Z','social','Arts',30]
+];
+for(const e of events){await pool.query(`insert into events(title,club,description,requirements,location,event_date,type,category,total_slots,status,created_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9,'open',$10) on conflict do nothing`,[...e,ids.clubLeader])}
+console.log(`Demo data ready: ${events.length} events`);await pool.end();
