@@ -2,20 +2,19 @@
 
 **Author:** Youssef Mostafa
 
-CampusConnect is separated into a React frontend and an Express backend.
+CampusConnect is separated into a React frontend and an Express backend, organized similarly to the reference software-project repository while preserving CampusConnect functionality.
 
 ```text
 CampusConnect/
-├── client/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── context/
-│   │   └── pages/
+├── frontend/
+│   ├── src/components/
+│   ├── src/context/
+│   ├── src/pages/
 │   ├── .env.example
 │   ├── package.json
 │   └── vite.config.js
 │
-├── server/
+├── backend/
 │   ├── config/
 │   ├── controllers/
 │   ├── middleware/
@@ -25,22 +24,26 @@ CampusConnect/
 │   ├── .env.example
 │   ├── package.json
 │   ├── seedAdmin.js
+│   ├── seedDemoData.js
 │   └── server.js
 │
+├── api/index.js
 ├── postman/
 ├── docs/
+├── package.json
+├── vercel.json
 ├── .gitignore
 └── README.md
 ```
 
-## Frontend Responsibilities
+## Frontend responsibilities
 
-The React application handles navigation, authentication state, protected routes, event discovery, registration views, profile management, club-leader pages, registrants, and the admin dashboard.
+Navigation, authentication state, protected routes, event discovery/filtering, event details, RSVP, registration history, profile management, club-leader event management, registrants, and admin dashboard.
 
-## Backend Responsibilities
+## Backend responsibilities
 
-The Express application handles authentication, authorization, MongoDB persistence, event rules, registrations, administrative operations, and external classification integration.
+Authentication, authorization, MongoDB persistence, event CRUD and business rules, registration workflow, administration, centralized errors, and Hugging Face classification.
 
-## Data Layer
+## Data layer
 
-Mongoose models provide persistence and validation for users, events, and registrations.
+Mongoose models provide persistence and validation for User, Event, and Registration. The Registration schema has a compound unique index on `{ user, event }` to prevent duplicate RSVP records.
