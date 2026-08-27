@@ -1,0 +1,9 @@
+{
+  "name": "campusconnect",
+  "version": "1.0.0",
+  "private": true,
+  "author": "Youssef Mostafa",
+  "scripts": {
+    "build": "cd client && npm install && npm run build"
+  }
+}
