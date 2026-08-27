@@ -16,14 +16,25 @@ cd server
 npm install
 ```
 
-Create `server/.env` from `server/.env.example`.
+Create `server/.env` from `server/.env.example`. Never commit the real `.env` file.
 
-Then run:
+Start the API:
 
 ```bash
 npm run seed:admin
+npm run seed:demo
 npm start
 ```
+
+`seed:demo` creates the sample CampusConnect events and demo accounts without duplicating events when run again.
+
+## Demo accounts
+
+- Admin: `admin@campusconnect.local` / `Admin123!`
+- Approved club leader: `leader@campusconnect.local` / `Leader123!`
+- Student: `student@campusconnect.local` / `Student123!`
+
+Change these credentials for any real deployment.
 
 ## Frontend
 
@@ -45,10 +56,10 @@ The default local database is:
 
 ## Environment Variables
 
-Backend variables are documented in `server/.env.example`. Frontend variables are documented in `client/.env.example`.
+Backend variables are documented in `server/.env.example`; frontend variables are documented in `client/.env.example`.
 
-Do not commit real `.env` files or secrets.
+Backend uses `MONGODB_URI` (and supports `MONGO_URI` for compatibility), `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLIENT_URL`, and optional `HF_API_TOKEN`.
 
-## Admin Seed
+## API testing
 
-Run `npm run seed:admin` from `server` to create the development administrator account.
+Import `postman/CampusConnect.postman_collection.json` into Postman. Set `baseUrl` to `http://localhost:5000/api` and provide a JWT in the `token` variable for protected requests.
