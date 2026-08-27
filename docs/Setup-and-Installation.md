@@ -12,13 +12,11 @@
 ## Backend
 
 ```bash
-cd server
+cd backend
 npm install
 ```
 
-Create `server/.env` from `server/.env.example`. Never commit the real `.env` file.
-
-Start the API:
+Create `backend/.env` from `backend/.env.example`. Never commit the real `.env` file.
 
 ```bash
 npm run seed:admin
@@ -26,7 +24,19 @@ npm run seed:demo
 npm start
 ```
 
-`seed:demo` creates the sample CampusConnect events and demo accounts without duplicating events when run again.
+The API runs on `http://localhost:5000`.
+
+## Frontend
+
+Open a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`.
 
 ## Demo accounts
 
@@ -34,32 +44,18 @@ npm start
 - Approved club leader: `leader@campusconnect.local` / `Leader123!`
 - Student: `student@campusconnect.local` / `Student123!`
 
-Change these credentials for any real deployment.
+The demo seed creates eight future events and uses upserts so rerunning it does not duplicate event titles.
 
-## Frontend
+## Environment variables
 
-Open a second terminal:
+Backend: `PORT`, `MONGODB_URI` (or `MONGO_URI`), `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLIENT_URL`, optional `HF_API_TOKEN`.
 
-```bash
-cd client
-npm install
-npm run dev
-```
-
-Open `http://localhost:5173`.
-
-## Local MongoDB
-
-The default local database is:
-
-`mongodb://127.0.0.1:27017/campusconnect`
-
-## Environment Variables
-
-Backend variables are documented in `server/.env.example`; frontend variables are documented in `client/.env.example`.
-
-Backend uses `MONGODB_URI` (and supports `MONGO_URI` for compatibility), `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLIENT_URL`, and optional `HF_API_TOKEN`.
+Frontend: `VITE_API_URL=http://localhost:5000/api` for separate local servers. In the Vercel same-origin setup, the API service defaults to `/api` when `VITE_API_URL` is not provided.
 
 ## API testing
 
 Import `postman/CampusConnect.postman_collection.json` into Postman. Set `baseUrl` to `http://localhost:5000/api` and provide a JWT in the `token` variable for protected requests.
+
+## Deployment
+
+The repository includes `vercel.json` and `api/index.js` for the optional Vercel bonus deployment. MongoDB and secrets must be supplied through the hosting provider's environment variables; no real credentials belong in GitHub.
