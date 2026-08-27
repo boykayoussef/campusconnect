@@ -17,7 +17,7 @@ const admin = await User.findOneAndUpdate(
 );
 const leader = await User.findOneAndUpdate(
   { email: 'leader@campusconnect.local' },
-  { $set: { name: 'Campus Club Leader', email: 'leader@campusconnect.local', password: leaderPasswordHash, role: 'club_leader', status: 'approved' } },
+  { $set: { name: 'Campus Club Leader', email: 'leader@campusconnect.local', password: leaderPasswordHash, role: 'clubLeader', status: 'approved' } },
   { upsert: true, new: true }
 );
 await User.findOneAndUpdate(
@@ -38,11 +38,7 @@ const events = [
 ];
 
 for (const data of events) {
-  await Event.updateOne(
-    { title: data.title },
-    { $set: { ...data, createdBy: leader._id, status: 'open' } },
-    { upsert: true }
-  );
+  await Event.updateOne({ title: data.title }, { $set: { ...data, createdBy: leader._id, status: 'open' } }, { upsert: true });
 }
 
 console.log(`Demo data ready: ${events.length} events, admin ${admin.email}, leader ${leader.email}, student student@campusconnect.local`);
