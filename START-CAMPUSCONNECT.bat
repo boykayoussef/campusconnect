@@ -38,15 +38,21 @@ if not exist "mobile\node_modules" (
   cd ..
 )
 
+rem Detect the computer's LAN IPv4 address so a physical phone can reach Express.
+set "LAN_IP="
+for /f "delims=" %%I in ('powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.PrefixOrigin -ne 'WellKnown'} | Select-Object -First 1 -ExpandProperty IPAddress"') do set "LAN_IP=%%I"
+if not defined LAN_IP set "LAN_IP=127.0.0.1"
+>"mobile\.env" echo EXPO_PUBLIC_API_URL=http://%LAN_IP%:5000/api
+
 echo.
+echo Using mobile API URL: http://%LAN_IP%:5000/api
 echo Starting Express backend...
 start "CampusConnect Backend" cmd /k "cd /d "%~dp0backend" && npm start"
 
 timeout /t 3 /nobreak >nul
 
 echo Starting Expo mobile app...
-start "CampusConnect Expo" cmd /k "cd /d "%~dp0mobile" && npx expo start"
-
+start "CampusConnect Expo" cmd /k "cd /d "%~dp0mobile" && npx expo start -c"
 echo.
 echo Both services have been started.
 echo Keep both terminal windows open.
