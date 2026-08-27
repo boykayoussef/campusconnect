@@ -27,15 +27,15 @@ Authentication uses `Authorization: Bearer <JWT>` on private endpoints. Errors u
 - `GET /events/:id` — public event details, host and remaining slots.
 - `PUT /events/:id` — owner/admin update event; description changes trigger reclassification.
 - `DELETE /events/:id` — owner/admin delete event and its registrations.
-- `GET /events/mine` — authenticated club leader/admin list of created events.
+- `GET /events/my/created` — authenticated club leader/admin list of created events. `/events/mine` remains as a compatibility alias.
 
 ## Registrations
 
 - `POST /registrations` — student RSVP with optional note.
 - `GET /registrations/my` — authenticated registration history with event details.
 - `GET /registrations/event/:id` — event owner/admin list registrants.
-- `PUT /registrations/:id` — owner/admin change status to `pending`, `confirmed`, or `cancelled`.
-- `DELETE /registrations/:id` — owner/admin cancel registration.
+- `PUT /registrations/:id` — event owner/admin, or the student who owns the registration, may change status to `pending`, `confirmed`, or `cancelled` according to role permissions.
+- `DELETE /registrations/:id` — student who owns the registration or admin cancels it.
 
 ## Server-side business rules
 
@@ -44,8 +44,9 @@ Authentication uses `Authorization: Bearer <JWT>` on private endpoints. Errors u
 3. Past events reject registration.
 4. Pending/rejected club leaders cannot create events.
 5. Club leaders can only edit/delete their own events and view their own event registrants.
-6. Authentication and role/ownership checks are enforced in backend middleware/controllers, not only in React.
-7. Required event fields are validated with HTTP 400 responses.
+6. Club leaders can only change registration statuses for registrations belonging to their own events.
+7. Authentication and role/ownership checks are enforced in backend middleware/controllers, not only in React.
+8. Required event fields are validated with HTTP 400 responses.
 
 ## Health
 
