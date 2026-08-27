@@ -1,0 +1,2 @@
+import axios from 'axios';
+export async function classifyEvent(text){if(!process.env.HF_API_TOKEN)return 'Other';try{const r=await axios.post('https://api-inference.huggingface.co/models/facebook/bart-large-mnli',{inputs:text,parameters:{candidate_labels:['Academic','Sports','Arts','Technology','Social','Career','Volunteering','Other']}},{headers:{Authorization:`Bearer ${process.env.HF_API_TOKEN}`},timeout:10000});return r.data?.labels?.[0]||'Other'}catch(e){return 'Other'}}
