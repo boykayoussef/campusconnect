@@ -18,7 +18,4 @@ const eventSchema = new mongoose.Schema({
 eventSchema.index({ eventDate: 1 });
 eventSchema.index({ category: 1 });
 
-eventSchema.virtual('remainingSlots').get(function () { return this.totalSlots; });
-eventSchema.set('toJSON', { virtuals: true });
-
 export default mongoose.model('Event', eventSchema);
