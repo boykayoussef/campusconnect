@@ -1,0 +1,102 @@
+{
+  "info": {
+    "name": "CampusConnect API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Task 2 API test collection for authentication, users, events and registrations. Set baseUrl and token variables before running protected requests."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "eventId", "value": "" },
+    { "key": "registrationId", "value": "" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test Student\",\n  \"email\": \"student@example.com\",\n  \"password\": \"Student123!\",\n  \"role\": \"student\"\n}" },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Register club leader",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test Leader\",\n  \"email\": \"leader@example.com\",\n  \"password\": \"Leader123!\",\n  \"role\": \"clubLeader\"\n}" },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@example.com\",\n  \"password\": \"Student123!\"\n}" },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users (admin)",
+      "item": [
+        {
+          "name": "List users",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/users" }
+        },
+        {
+          "name": "Approve/reject club leader",
+          "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" }, "url": "{{baseUrl}}/users/{{userId}}/status" }
+        },
+        {
+          "name": "Change role",
+          "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"role\": \"clubLeader\"\n}" }, "url": "{{baseUrl}}/users/{{userId}}/role" }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        { "name": "List/search events", "request": { "method": "GET", "url": "{{baseUrl}}/events?q=AI&category=Technology&type=workshop" } },
+        { "name": "Event details", "request": { "method": "GET", "url": "{{baseUrl}}/events/{{eventId}}" } },
+        {
+          "name": "Create event (approved leader)",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"API Test Workshop\",\n  \"club\": \"Computer Science Club\",\n  \"description\": \"A workshop created through the API test collection.\",\n  \"requirements\": [\"Laptop\"],\n  \"location\": \"Innovation Lab\",\n  \"eventDate\": \"2026-12-01T14:00:00.000Z\",\n  \"type\": \"workshop\",\n  \"totalSlots\": 25\n}" }, "url": "{{baseUrl}}/events" }
+        },
+        { "name": "My created events", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/events/my/created" } },
+        { "name": "Update event", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated API Test Workshop\"\n}" }, "url": "{{baseUrl}}/events/{{eventId}}" } },
+        { "name": "Delete event", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/events/{{eventId}}" } }
+      ]
+    },
+    {
+      "name": "Registrations",
+      "item": [
+        { "name": "RSVP", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"eventId\": \"{{eventId}}\"\n}" }, "url": "{{baseUrl}}/registrations" } },
+        { "name": "My registrations", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/registrations/my" } },
+        { "name": "Registration status", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/registrations/status/{{eventId}}" } },
+        { "name": "Event registrants", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/registrations/event/{{eventId}}" } },
+        { "name": "Confirm/cancel registration", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\"\n}" }, "url": "{{baseUrl}}/registrations/{{registrationId}}" } },
+        { "name": "Cancel registration", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/registrations/{{registrationId}}" } }
+      ]
+    }
+  ]
+}
