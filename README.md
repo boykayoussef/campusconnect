@@ -3,102 +3,139 @@
 **Author:** Youssef Mostafa  
 **Application:** CampusConnect — AI-Enhanced Campus Community Platform
 
-CampusConnect is a university event and community platform. The current implementation uses **React / React Native**, a **Node.js + Express REST API**, and **PostgreSQL hosted by Supabase**.
+CampusConnect is a university campus community and event platform built for the Software Engineering Summer 2026 project. It implements the required MERN architecture: React frontend, Node.js + Express REST API, MongoDB through Mongoose, JWT authentication, role-based authorization, and Hugging Face event categorisation.
 
 ## Architecture
 
 ```text
-React web / React Native mobile
-             |
-             | REST + JSON + JWT
-             v
+React + Vite + React Router
+            |
+            | REST + JSON + JWT
+            v
       Node.js + Express
-             |
-             | parameterized SQL
-             v
-       Supabase PostgreSQL
+            |
+            | Mongoose
+            v
+        MongoDB
 ```
-
-## Main features
-
-### Students
-- Register and login with bcrypt-hashed passwords
-- Browse public upcoming events
-- Search and filter events
-- View event details and remaining capacity
-- RSVP and prevent duplicate registration
-- Prevent RSVP to closed, full, or past events
-- View and cancel own registrations
-- Update own profile
-
-### Guest users (mobile)
-- Enter the app without an account
-- Browse events immediately
-- Save RSVPs locally on the device
-- Later open Login / Create Account from Profile
-- Guest mode never bypasses protected server operations
-
-### Club Leaders
-- Register as a Club Leader and wait for Admin approval
-- Create events only after approval
-- View, edit and delete only their own events
-- View registrants for their own events
-- Confirm/cancel registrations for their events
-- Automatic AI category classification with a deterministic fallback
-
-### Admins
-- View/filter users
-- Approve or reject Club Leader applications
-- Change user roles/status
-- Remove any event
-- View platform summary data
-- Full RBAC is enforced by Express middleware, not only by the UI
-
-## Database
-
-Supabase PostgreSQL contains:
-
-- `users`
-- `events`
-- `registrations`
-- `event_capacity` view
-
-Migrations:
-
-- `supabase/migrations/001_initial_schema.sql`
-- `supabase/migrations/002_registration_note.sql`
 
 ## Technology stack
 
 | Layer | Technology |
 |---|---|
-| Web frontend | React + Vite + React Router |
-| Mobile | React Native + Expo |
-| Backend | Node.js + Express |
-| Database | PostgreSQL + Supabase |
-| Authentication | JWT + bcryptjs |
-| AI classification | Optional Hugging Face + local fallback |
+| Frontend | React, Vite, React Router, Axios |
+| Backend | Node.js, Express |
+| Database | MongoDB, Mongoose |
+| Authentication | JWT, bcryptjs |
+| AI | Hugging Face inference API with local fallback |
 | API testing | Postman |
 | Version control | GitHub |
 
-## Course / lecture alignment
+## User roles
 
-The implementation follows the concepts emphasized in the CSEN406 lectures: separated presentation/business/data tiers, Express routes and middleware, HTTP CRUD methods, environment variables, React components and JSX, React state/hooks, React Router, event handling, and Axios/REST API communication. The frontend uses reusable components and routed views, while the backend exposes REST endpoints and centralized error handling.
+### Student
+- Register and login securely.
+- Browse approved public events.
+- Search and filter events by keyword, category and type.
+- View complete event details, capacity and remaining slots.
+- RSVP to events and prevent duplicate registrations.
+- View registration history and cancel registrations.
+- Update their own profile.
 
-The supplied project brief requires secure authentication, role-based authorization, CRUD operations for users/events/registrations, event ownership rules, capacity/duplicate-RSVP rules, and all three user roles. Those flows are implemented server-side here. The project has been adapted to the **PERN/Supabase PostgreSQL setup already used in this repository**, rather than replacing the existing CampusConnect application with a different project.
+### Club Leader
+- Register as a club leader and start with `pending` status.
+- Wait for admin approval before publishing events.
+- Create, edit and delete only their own events.
+- View registrants for their own events.
+- Confirm or cancel registrations for their events.
+- Receive an AI-assigned event category after saving.
+
+### System Admin
+- View the complete user list.
+- Filter users by role/status through the API.
+- Approve or reject pending club leader accounts.
+- Change user roles/status where appropriate.
+- Remove events from the platform.
+- Server-side RBAC prevents unauthorized actions even if the frontend is bypassed.
+
+## Required application pages
+
+- **Register / Login** — public account creation and authentication.
+- **Event Feed** — public event list with category badges, search and filters.
+- **Event Details** — full event information, host, capacity, remaining slots and RSVP.
+- **Create / Edit Event** — club leader form; category is generated by the backend AI service.
+- **My Events** — club leader's own events with edit/delete actions.
+- **Event Registrants** — registrants for an owned event with status controls.
+- **My Registrations** — student registration history and cancellation.
+- **Admin Dashboard** — pending leader approval, user list and event removal.
+- **Profile** — authenticated user's own profile management.
+
+## Backend API
+
+### Authentication
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+
+### Users
+- `GET /api/users/profile`
+- `PUT /api/users/profile`
+- `GET /api/users` — admin
+- `PUT/PATCH /api/users/:id/status` — admin
+- `PUT/PATCH /api/users/:id/role` — admin
+
+### Events
+- `GET /api/events`
+- `GET /api/events/:id`
+- `POST /api/events` — approved club leader
+- `PUT/PATCH /api/events/:id` — owner/admin
+- `DELETE /api/events/:id` — owner/admin
+- `GET /api/events/my/created` — owner/admin
+
+### Registrations
+- `POST /api/registrations` — student RSVP
+- `GET /api/registrations/my` — student
+- `GET /api/registrations/status/:eventId` — student
+- `GET /api/registrations/event/:id` — owner/admin
+- `PUT/PATCH /api/registrations/:id` — owner/admin
+- `DELETE /api/registrations/:id` — student/admin
+
+### Health
+- `GET /api/health`
+
+## Security and authorization
+
+- Passwords are hashed with bcrypt before storage.
+- Passwords use `select: false` in the User schema and are never returned in normal API responses.
+- JWTs contain the authenticated user's id and role and are required on protected routes.
+- Authentication and role checks are enforced in Express middleware.
+- Club leader ownership is checked on event and registration operations.
+- Club leader accounts remain pending until an admin approves them.
+- Duplicate RSVPs are prevented with a MongoDB unique compound index on `(user, event)`.
+- Server-side validation rejects missing or invalid required data with HTTP 400 responses.
+- Centralized error middleware returns consistent JSON errors.
+- `.env` files are ignored by Git and a safe `backend/.env.example` is provided.
 
 ## Local setup
 
-### 1. Clone
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/boykayoussef/campusconnect.git
 cd campusconnect
 ```
 
-### 2. Supabase database
+### 2. MongoDB
 
-Run both SQL migrations in the Supabase SQL Editor, in order.
+Use either a local MongoDB installation or MongoDB Atlas.
+
+For local MongoDB:
+
+```text
+mongodb://127.0.0.1:27017/campusconnect
+```
+
+For Atlas, put your `mongodb+srv://...` connection string in `MONGODB_URI`.
 
 ### 3. Backend
 
@@ -107,19 +144,21 @@ cd backend
 npm install
 ```
 
-Create `backend/.env` from `backend/.env.example` and fill in your private values:
+Create `backend/.env` from `backend/.env.example` and provide your private values:
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://postgres.<project-ref>:YOUR_PASSWORD@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+MONGODB_URI=mongodb://127.0.0.1:27017/campusconnect
 JWT_SECRET=use-a-long-random-secret
+JWT_EXPIRES_IN=1d
+CLIENT_URL=http://localhost:5173
+HF_API_TOKEN=
 ADMIN_NAME=System Admin
 ADMIN_EMAIL=admin@campusconnect.local
-ADMIN_PASSWORD=use-a-strong-admin-password
-HUGGINGFACE_API_KEY=
+ADMIN_PASSWORD=use-a-strong-password
 ```
 
-**Never commit `backend/.env`.**
+Never commit `backend/.env`.
 
 Start the API:
 
@@ -127,48 +166,23 @@ Start the API:
 npm start
 ```
 
-Health check:
+The server connects to MongoDB before listening. If the database connection fails, startup exits with an error.
 
-```text
-http://localhost:5000/api/health
-```
-
-Create/update the admin account when needed:
-
-```bash
-npm run seed:admin
-```
-
-### 4. Demo data
+### 4. Optional demo data
 
 ```bash
 npm run seed:demo
 ```
 
-The seed creates realistic upcoming CampusConnect events and demo users. Check `backend/seedDemoData.js` for the current demo credentials instead of putting credentials in documentation.
+This creates realistic upcoming events and demo accounts in MongoDB.
 
-### 5. React Native / Expo
-
-```bash
-cd ../mobile
-npm install
-```
-
-For a physical phone create `mobile/.env`:
-
-```env
-EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_IP:5000/api
-```
-
-Keep the phone and computer on the same Wi-Fi network. Start Expo:
+To create/update the admin account with credentials from `.env`:
 
 ```bash
-npx expo start
+npm run seed:admin
 ```
 
-Scan the QR code with Expo Go.
-
-### 6. React web frontend
+### 5. React frontend
 
 ```bash
 cd ../frontend
@@ -176,57 +190,62 @@ npm install
 npm run dev
 ```
 
-The Vite development server normally runs on port 5173.
+The Vite development server normally runs on `http://localhost:5173`.
 
-## API surface
+If the API is not same-origin, create `frontend/.env` using:
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `GET/PUT /api/users/profile`
-- `GET /api/users` (admin)
-- `PUT/PATCH /api/users/:id/status` (admin)
-- `PUT/PATCH /api/users/:id/role` (admin)
-- `GET /api/events`
-- `GET /api/events/:id`
-- `POST /api/events` (approved club leader)
-- `PUT/PATCH /api/events/:id`
-- `DELETE /api/events/:id`
-- `GET /api/events/my/created`
-- `POST /api/registrations` (student)
-- `GET /api/registrations/my` (student)
-- `GET /api/registrations/status/:eventId` (student)
-- `GET /api/registrations/event/:id` (owner/admin)
-- `PUT /api/registrations/:id` (owner/admin)
-- `DELETE /api/registrations/:id` (student/admin)
-- `GET /api/admin/summary` (admin)
+```env
+VITE_API_URL=http://localhost:5000/api
+```
 
-## Testing checklist
+## API testing
 
-Before submission, test the following end-to-end flows:
+A ready-to-import Postman collection is committed at:
 
-1. Student registration and login.
-2. Student profile update.
-3. Club Leader registration -> pending status -> Admin approval.
-4. Approved Club Leader creates an event.
-5. Public event feed/search/filter/detail.
-6. Student RSVP succeeds once and duplicate RSVP is rejected.
-7. Full/closed/past event RSVP is rejected.
-8. Club Leader sees only their event registrants.
-9. Club Leader cannot edit/delete another leader's event.
-10. Admin can approve/reject users and remove events.
-11. Mobile guest can browse and save a local RSVP, then login later.
-12. `/api/health` reports the database as connected.
+`docs/CampusConnect.postman_collection.json`
 
-## Security notes
+It covers health, authentication, user administration, event CRUD, search/filtering, RSVP, registration status, registrant management and cancellation.
 
-- Passwords are hashed with bcrypt and are never returned in API responses.
-- JWT protects private routes.
-- Role and ownership checks are enforced server-side.
-- SQL queries are parameterized.
-- Duplicate registrations are prevented by a database unique constraint.
-- Capacity checks are performed in a database transaction.
-- `.env` files are ignored by Git.
+## End-to-end submission test checklist
+
+1. Register and login as a student.
+2. Update the student's profile.
+3. Register a club leader and verify the status is `pending`.
+4. Attempt to create an event before approval and verify HTTP 403.
+5. Login as admin and approve the club leader.
+6. Create an event as the approved leader.
+7. Verify the AI category is returned and displayed.
+8. Verify the public event feed, search and filters.
+9. Open event details and verify capacity/remaining slots.
+10. RSVP as a student.
+11. Attempt a duplicate RSVP and verify it is rejected.
+12. Verify a full, closed or past event cannot be registered for.
+13. Verify the student can view and cancel their registration.
+14. Verify the club leader can view only their own event registrants.
+15. Verify a leader cannot edit/delete another leader's event.
+16. Verify the leader can confirm/cancel registrations for their own event.
+17. Verify the admin can approve/reject club leaders and remove events.
+18. Verify protected API calls reject missing/invalid JWTs with HTTP 401.
+19. Verify the API returns `{ success: false, message: "..." }` for handled errors.
+20. Verify the app is usable on desktop and mobile widths.
+
+## Version control requirements
+
+Task 2 requires feature branches, Pull Requests and meaningful commits. The repository history contains the project branches/PR workflow; continue using feature branches for any final changes and merge through reviewed Pull Requests rather than committing directly to `main`.
+
+## Bonus deployment
+
+Deployment is optional for the task and earns bonus marks when it is fully functional. For the bonus, use MongoDB Atlas, deploy the Express backend to a supported platform such as Render/Railway/Fly.io, deploy the React frontend to Vercel/Netlify, configure CORS, and document both live URLs plus test credentials in this README.
+
+## Project documentation
+
+- `docs/API-Documentation.md` — endpoint documentation.
+- `docs/Setup-and-Installation.md` — setup notes.
+- `docs/Project-Structure.md` — project structure.
+- `docs/FINAL-TEST-PLAN.md` — testing plan.
+- `docs/Demo-Workflow.md` — demonstration workflow.
+- `docs/Submission-Checklist.md` — submission checklist.
+- `docs/CampusConnect.postman_collection.json` — Postman API collection.
 
 ## Author
 
