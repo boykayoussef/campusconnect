@@ -17,8 +17,8 @@ Authentication uses `Authorization: Bearer <JWT>` on private endpoints. Errors u
 - `GET /users/profile` — private own profile.
 - `PUT /users/profile` — private update own name, bio, or profile picture.
 - `GET /users` — admin list users; supports `?role=` and `?status=` filters.
-- `PUT /users/:id/status` — admin approve/reject/pending club leader.
-- `PUT /users/:id/role` — admin change role to `student`, `clubLeader`, or `admin`.
+- `PUT/PATCH /users/:id/status` — admin approve/reject/pending club leader.
+- `PUT/PATCH /users/:id/role` — admin change role to `student`, `clubLeader`, or `admin`.
 
 ## Events
 
@@ -31,7 +31,7 @@ Authentication uses `Authorization: Bearer <JWT>` on private endpoints. Errors u
 
 ## Registrations
 
-- `POST /registrations` — student RSVP with optional note.
+- `POST /registrations` — student RSVP with optional note using `{ "event": "<eventId>" }`.
 - `GET /registrations/my` — authenticated registration history with event details.
 - `GET /registrations/event/:id` — event owner/admin list registrants.
 - `PUT /registrations/:id` — event owner/admin, or the student who owns the registration, may change status to `pending`, `confirmed`, or `cancelled` according to role permissions.
@@ -47,15 +47,17 @@ Authentication uses `Authorization: Bearer <JWT>` on private endpoints. Errors u
 6. Club leaders can only change registration statuses for registrations belonging to their own events.
 7. Authentication and role/ownership checks are enforced in backend middleware/controllers, not only in React.
 8. Required event fields are validated with HTTP 400 responses.
+9. The server connects to MongoDB before it starts listening; a failed database connection stops startup.
 
 ## Health
 
-`GET /health` returns API status without requiring a database-backed route.
+`GET /health` returns the API status. The server will only start after the MongoDB connection succeeds.
 
 ```json
 {
   "success": true,
-  "message": "CampusConnect API is running"
+  "message": "CampusConnect API is running",
+  "database": "mongodb"
 }
 ```
 
@@ -65,4 +67,4 @@ The backend sends event title/description text to `facebook/bart-large-mnli` wit
 
 ## Postman
 
-Import `postman/CampusConnect.postman_collection.json` for the API test collection.
+Import `docs/CampusConnect.postman_collection.json` for the API test collection.
