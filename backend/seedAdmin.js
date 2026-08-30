@@ -1,27 +1,25 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import { pool, connectDB } from './config/db.js';
+import mongoose from 'mongoose';
+import User from './models/User.js';
+import { connectDB } from './config/db.js';
 
-await connectDB();
-
-const email = process.env.ADMIN_EMAIL || 'admin@campusconnect.local';
+const email = process.env.ADMIN_EMAIL;
 const password = process.env.ADMIN_PASSWORD;
+const name = process.env.ADMIN_NAME || 'System Admin';
 
-if (!password || password.length < 8) {
-  console.error('Set ADMIN_PASSWORD (8+ characters) in backend/.env before running the admin seed.');
-  await pool.end();
+if (!email || !password) {
+  console.error('ADMIN_EMAIL and ADMIN_PASSWORD must be set in backend/.env');
   process.exit(1);
 }
 
-const hash = await bcrypt.hash(password, 12);
-const { rows } = await pool.query(
-  `insert into users(name,email,password_hash,role,status)
-   values($1,$2,$3,'admin','approved')
-   on conflict(email) do update set password_hash=excluded.password_hash,
-     role='admin', status='approved', updated_at=now()
-   returning id`,
-  [process.env.ADMIN_NAME || 'System Admin', email.toLowerCase(), hash]
+await connectDB();
+const passwordHash = await bcrypt.hash(password, 12);
+const user = await User.findOneAndUpdate(
+  { email: email.toLowerCase() },
+  { $set: { name, email: email.toLowerCase(), password: passwordHash, role: 'admin', status: 'approved' } },
+  { upsert: true, new: true }
 );
 
-console.log(`Admin ready: ${email} (${rows[0].id})`);
-await pool.end();
+console.log(`Admin account ready: ${user.email}`);
+await mongoose.disconnect();
