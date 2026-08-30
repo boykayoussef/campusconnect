@@ -1,13 +1,16 @@
-import {Router} from 'express';
+import { Router } from 'express';
 import auth from '../middleware/authMiddleware.js';
-import {roles,approvedLeader} from '../middleware/roleMiddleware.js';
-import {create,list,getOne,update,remove,mine} from '../controllers/eventController.js';
-const r=Router();
-r.get('/',list);
-r.get('/my/created',auth,roles('clubLeader','admin'),mine);
-r.get('/mine',auth,roles('clubLeader','admin'),mine);
-r.get('/:id',getOne);
-r.post('/',auth,roles('clubLeader'),approvedLeader,create);
-r.put('/:id',auth,roles('clubLeader','admin'),update);
-r.delete('/:id',auth,roles('clubLeader','admin'),remove);
+import { roles, approvedLeader } from '../middleware/roleMiddleware.js';
+import { create, list, getOne, update, remove, mine } from '../controllers/eventController.js';
+
+const r = Router();
+r.get('/', list);
+r.get('/my/created', auth, roles('clubLeader', 'admin'), mine);
+r.get('/mine', auth, roles('clubLeader', 'admin'), mine);
+r.get('/:id', getOne);
+r.post('/', auth, roles('clubLeader'), approvedLeader, create);
+r.put('/:id', auth, roles('clubLeader', 'admin'), update);
+r.patch('/:id', auth, roles('clubLeader', 'admin'), update);
+r.delete('/:id', auth, roles('clubLeader', 'admin'), remove);
+
 export default r;
