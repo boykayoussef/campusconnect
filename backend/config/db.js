@@ -1,7 +1,11 @@
-import pg from 'pg';
-import 'dotenv/config';
-const { Pool } = pg;
+import mongoose from 'mongoose';
 
-if (!process.env.DATABASE_URL) console.warn('DATABASE_URL is not set. Configure the Supabase Postgres connection string before starting the API.');
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 5 });
-export async function connectDB(){ const c=await pool.connect(); try { await c.query('select 1'); console.log('Supabase PostgreSQL connected'); } finally { c.release(); } }
+export async function connectDB() {
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!uri) throw new Error('MONGODB_URI is not configured');
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
+
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+  console.log('MongoDB connected');
+  return mongoose.connection;
+}
